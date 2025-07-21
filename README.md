@@ -32,6 +32,10 @@ npm run serve   # start Express on http://localhost:3000
 
 After running the above commands, open <http://localhost:3000> to use the application.  Upload an image, create Y‑ROIs and an optional X‑ROI, then click **保存** to download `slices.zip`.
 
+The viewer automatically scales large images down to fit the canvas and scales
+small images up with a pixel grid so ROIs always match the original pixel
+coordinates.
+
 ## File layout
 
 ```
