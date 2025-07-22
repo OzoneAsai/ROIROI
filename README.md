@@ -9,7 +9,7 @@ ROIROI is a browser-oriented remake of the original PyQt tool for slicing questi
 
 ## Setup
 
-Install dependencies once:
+Requires **Node.js 20** or newer. Install dependencies once:
 
 ```bash
 npm install
