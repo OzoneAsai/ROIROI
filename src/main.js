@@ -9,6 +9,29 @@ const layer = new Konva.Layer({ draggable: true });
 const gridLayer = new Konva.Layer({ listening: false });
 stage.add(layer);
 stage.add(gridLayer);
+const transformer = new Konva.Transformer({
+  rotateEnabled: false,
+  ignoreStroke: true,
+  boundBoxFunc(oldBox, newBox) {
+    // Keep ROIs inside image bounds
+    if (selectedType === 'y') {
+      newBox.x = 0;
+      newBox.width = imgWidth;
+      newBox.y = Math.max(0, newBox.y);
+      newBox.height = Math.min(imgHeight - newBox.y, newBox.height);
+      if (newBox.height < 5) newBox.height = 5;
+    } else if (selectedType === 'x') {
+      newBox.y = 0;
+      newBox.height = imgHeight;
+      newBox.x = Math.max(0, newBox.x);
+      newBox.width = Math.min(imgWidth - newBox.x, newBox.width);
+      if (newBox.width < 5) newBox.width = 5;
+    }
+    return newBox;
+  },
+});
+layer.add(transformer);
+let selectedType = null;
 
 let imgWidth = 0;
 let imgHeight = 0;
@@ -82,6 +105,9 @@ function appendListItem(id, rect) {
     Array.from(roiList.children).forEach(el => el.classList.remove('active'));
     yRois.forEach(({ rect }) => rect.stroke(null));
     rect.stroke('red');
+    transformer.nodes([rect]);
+    transformer.enabledAnchors(['top-center', 'bottom-center']);
+    selectedType = 'y';
     li.classList.add('active');
     roiList.selected = li;
     stage.draw();
@@ -123,7 +149,13 @@ function addYROI(auto = true) {
   layer.add(rect);
   const id = ++uid;
   yRois.push({ rect, id });
-  appendListItem(id, rect);
+  const li = appendListItem(id, rect);
+  rect.on('mousedown', () => {
+    li.click();
+    transformer.nodes([rect]);
+    transformer.enabledAnchors(['top-center', 'bottom-center']);
+    selectedType = 'y';
+  });
   syncList();
   stage.draw();
 }
@@ -133,6 +165,7 @@ function toggleXRoi() {
   if (xRoi) {
     xRoi.destroy();
     xRoi = null;
+    transformer.nodes([]);
   } else {
     xRoi = new Konva.Rect({
       x: imgWidth * 0.1,
@@ -142,7 +175,16 @@ function toggleXRoi() {
       fill: 'rgba(255,140,0,0.3)',
       draggable: true,
     });
+    xRoi.on('transformend dragend', () => {});
     layer.add(xRoi);
+    xRoi.on('mousedown', () => {
+      transformer.nodes([xRoi]);
+      transformer.enabledAnchors(['left-center', 'right-center']);
+      selectedType = 'x';
+      yRois.forEach(({ rect }) => rect.stroke(null));
+      Array.from(roiList.children).forEach(el => el.classList.remove('active'));
+      stage.draw();
+    });
   }
   stage.draw();
 }
@@ -168,6 +210,7 @@ document.getElementById('fileInput').addEventListener('change', e => {
     yRois.length = 0;
     roiList.innerHTML = '';
     if (xRoi) { xRoi.destroy(); xRoi = null; }
+    transformer.nodes([]);
     computeBaseScale();
     layer.position({ x: 0, y: 0 });
     zoom = 1;
@@ -185,6 +228,9 @@ function deleteSelected() {
   yRois.splice(index, 1);
   li.remove();
   roiList.selected = null;
+  if (transformer.nodes()[0] === rect) {
+    transformer.nodes([]);
+  }
   syncList();
   stage.draw();
 }
@@ -222,6 +268,7 @@ document.getElementById('clearYs').onclick = () => {
   yRois.length = 0;
   roiList.innerHTML = '';
   roiList.selected = null;
+  transformer.nodes([]);
   stage.draw();
 };
 document.getElementById('zoomIn').onclick = () => { zoom *= 1.25; applyTransform(); };
